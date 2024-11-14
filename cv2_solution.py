@@ -30,6 +30,7 @@ def get_second_camera_position(kp1, kp2, matches, camera_matrix):
 
 
 # Task 3
+
 def triangulation(
         camera_matrix: np.ndarray,
         camera1_translation_vector: np.ndarray,
@@ -39,9 +40,50 @@ def triangulation(
         kp1: typing.Sequence[cv2.KeyPoint],
         kp2: typing.Sequence[cv2.KeyPoint],
         matches: typing.Sequence[cv2.DMatch]
-):
-    pass
-    # YOUR CODE HERE
+) -> np.ndarray:
+    """
+    Triangulates 3D points from the matched 2D keypoints in two images using their
+    camera matrices (intrinsics, rotation, and translation).
+    """
+    # Create projection matrices for each camera
+    # Camera 1
+    R1 = camera1_rotation_matrix
+    T1 = camera1_translation_vector
+    P1 = np.hstack((R1, T1))  # 3x4 matrix
+
+    # Camera 2
+    R2 = camera2_rotation_matrix
+    T2 = camera2_translation_vector
+    P2 = np.hstack((R2, T2))  # 3x4 matrix
+
+    P1 = camera_matrix @ P1  # Camera 1 projection matrix
+    P2 = camera_matrix @ P2  # Camera 2 projection matrix
+
+    points_3D = []
+
+    # Loop through each match and triangulate the corresponding 3D point
+    for match in matches:
+        # Extract the matched keypoints
+        pt1 = np.array(kp1[match.queryIdx].pt)
+        pt2 = np.array(kp2[match.trainIdx].pt)
+
+        # Create the A matrix for the linear system Ax = 0
+        A = np.array([
+            pt1[0] * P1[2] - P1[0],   # x1 * P1[2] - P1[0]
+            pt1[1] * P1[2] - P1[1],   # y1 * P1[2] - P1[1]
+            pt2[0] * P2[2] - P2[0],   # x2 * P2[2] - P2[0]
+            pt2[1] * P2[2] - P2[1]    # y2 * P2[2] - P2[1]
+        ])
+
+        # Use SVD to solve for the null space of A (the 3D point)
+        _, _, Vt = np.linalg.svd(A)
+        X = Vt[-1]  # The solution is the last row of Vt
+        X /= X[3]   # Normalize by the homogeneous coordinate
+
+        # Append the 3D point (X, Y, Z)
+        points_3D.append(X[:3])
+
+    return np.array(points_3D)
 
 
 # Task 4
