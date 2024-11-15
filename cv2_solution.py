@@ -7,18 +7,69 @@ import yaml
 
 
 # Task 2
-def get_matches(image1, image2) -> typing.Tuple[
-    typing.Sequence[cv2.KeyPoint], typing.Sequence[cv2.KeyPoint], typing.Sequence[cv2.DMatch]]:
+import numpy as np
+import cv2
+import typing
+
+def get_matches(
+    image1: np.ndarray,
+    image2: np.ndarray,
+    k_ratio: float = 0.75
+) -> typing.Tuple[
+    typing.Sequence[cv2.KeyPoint],
+    typing.Sequence[cv2.KeyPoint],
+    typing.Sequence[cv2.DMatch]
+]:
+    """
+    Detects key points and descriptors for the given images, matches them using SIFT,
+    applies k-ratio test and left-right check, and returns key points and matches.
+
+    Args:
+        image1 (np.ndarray): The first image.
+        image2 (np.ndarray): The second image.
+        k_ratio (float): Ratio for k-ratio test (default 0.75).
+
+    Returns:
+        Tuple: Key points for both images and filtered matches.
+    """
+    # Convert images to grayscale (if not already)
+    gray1 = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
+    gray2 = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
+
+    # Initialize SIFT
     sift = cv2.SIFT_create()
-    img1_gray = cv2.cvtColor(image1, cv2.COLOR_BGR2GRAY)
-    img2_gray = cv2.cvtColor(image2, cv2.COLOR_BGR2GRAY)
-    kp1, descriptors1 = sift.detectAndCompute(img1_gray, None)
-    kp2, descriptors2 = sift.detectAndCompute(img2_gray, None)
 
+    # Detect key points and descriptors
+    kp1, des1 = sift.detectAndCompute(gray1, None)
+    kp2, des2 = sift.detectAndCompute(gray2, None)
+
+    # Initialize brute-force matcher
     bf = cv2.BFMatcher()
-    matches_1_to_2: typing.Sequence[typing.Sequence[cv2.DMatch]] = bf.knnMatch(descriptors1, descriptors2, k=2)
 
-    # YOUR CODE HERE
+    # Perform KNN matching (k=2)
+    matches_1_to_2 = bf.knnMatch(des1, des2, k=2)
+    matches_2_to_1 = bf.knnMatch(des2, des1, k=2)
+
+    # Apply k-ratio test to filter matches
+    good_matches_1_to_2 = [
+        m[0] for m in matches_1_to_2
+        if len(m) == 2 and m[0].distance < k_ratio * m[1].distance
+    ]
+    good_matches_2_to_1 = [
+        m[0] for m in matches_2_to_1
+        if len(m) == 2 and m[0].distance < k_ratio * m[1].distance
+    ]
+
+    # Perform left-right consistency check
+    final_matches = []
+    for match in good_matches_1_to_2:
+        for reverse_match in good_matches_2_to_1:
+            if match.queryIdx == reverse_match.trainIdx and match.trainIdx == reverse_match.queryIdx:
+                final_matches.append(match)
+                break
+
+    return kp1, kp2, final_matches
+
 
 
 def get_second_camera_position(kp1, kp2, matches, camera_matrix):
