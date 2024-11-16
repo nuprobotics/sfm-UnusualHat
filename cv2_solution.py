@@ -7,10 +7,6 @@ import yaml
 
 
 # Task 2
-import numpy as np
-import cv2
-import typing
-
 def get_matches(
     image1: np.ndarray,
     image2: np.ndarray,
@@ -71,7 +67,6 @@ def get_matches(
     return kp1, kp2, final_matches
 
 
-
 def get_second_camera_position(kp1, kp2, matches, camera_matrix):
     coordinates1 = np.array([kp1[match.queryIdx].pt for match in matches])
     coordinates2 = np.array([kp2[match.trainIdx].pt for match in matches])
@@ -81,7 +76,6 @@ def get_second_camera_position(kp1, kp2, matches, camera_matrix):
 
 
 # Task 3
-
 def triangulation(
         camera_matrix: np.ndarray,
         camera1_translation_vector: np.ndarray,
@@ -144,14 +138,29 @@ def resection(
         camera_matrix,
         matches,
         points_3d
-):
+) -> typing.Tuple[np.ndarray, np.ndarray]:
     pass
-    # YOUR CODE HERE
 
 
-def convert_to_world_frame(translation_vector, rotation_matrix):
-    pass
-    # YOUR CODE HERE
+# Task 5
+def convert_to_world_frame(translation_vector: np.ndarray, rotation_matrix: np.ndarray) -> typing.Tuple[np.ndarray, np.ndarray]:
+    """
+    Converts the camera's position and orientation to the world frame.
+
+    Args:
+        translation_vector (np.ndarray): The translation vector of the camera in the camera's local coordinate system (3x1).
+        rotation_matrix (np.ndarray): The rotation matrix of the camera (3x3) that describes its orientation in the local coordinate system.
+
+    Returns:
+        Tuple[np.ndarray, np.ndarray]: The camera position in the world coordinate system (3x1) and the camera orientation (rotation matrix) in the world frame (3x3).
+    """
+    # Calculate camera position in world frame
+    camera_position = -rotation_matrix.T @ translation_vector  # Rotate and negate the translation vector
+
+    # The camera orientation in world frame is the transpose of the camera's rotation matrix
+    camera_rotation = rotation_matrix.T
+
+    return camera_position, camera_rotation
 
 
 def visualisation(
